@@ -1,0 +1,68 @@
+---
+title: "Homework_14_dec"
+author: "Nika Faynberg"
+date: "10 12 2019"
+output: html_document
+---
+Первое задание (про футболистов)
+```{r}
+library(tidyverse)
+library(ggplot2)
+json_file <- jsonlite::read_json("fpl_data_2018_2019.json")
+json_file %>%
+  tibble(Goals = map_chr(., "Goals"), Club = map_chr(., "Club")) %>%
+  mutate(new_goals = as.integer(Goals)) -> goals_clubs
+json_file %>%
+  map("name") %>% 
+  enframe() -> names_set
+names_set %>% 
+  bind_cols(goals_clubs) %>% 
+  within(rm(value, ., Goals)) %>% 
+  arrange(desc(new_goals)) %>% 
+  slice(1:30) %>% 
+  ggplot(aes(fct_reorder(name, new_goals), new_goals, fill = Club)) +
+  coord_flip() +
+  geom_col() +
+  labs(x = "", y = "", title = "Number of Goals", caption = "data from www.premierleague.com")
+```
+
+Второе задание (частотные слова из сборника)
+```{r}
+library(gutenbergr)
+library(tidytext)
+library(ggplot2)
+stop_list <- read_csv("stop_list.csv")
+stop_list
+women <- gutenberg_download(37196)
+women %>% 
+  unnest_tokens(word, text) %>% 
+  count(word, sort = TRUE) %>% 
+  anti_join(stop_list, by = "word") %>% 
+  slice(1:20) %>% 
+  ggplot(aes(fct_reorder(word, n), n)) +
+           geom_col() +
+  coord_flip() +
+  labs(x = "", y = "", title = "'Женское международное движение: Сборник статей': частотные слова", caption = "source www.gutenberg.org")
+```
+
+Третье задание
+```{r}
+library(tidyverse)
+library(udpipe)
+rumodel <- udpipe_download_model(language = "russian-syntagrus")
+tabak <- gutenberg_download(5316)
+str_c(tabak$text, collapse = " ") %>% 
+  udpipe(rumodel) -> table
+table %>% 
+  mutate(upos = str_replace_all(upos, "DET", "PART")) %>% 
+  mutate(upos = case_when( 
+    str_detect(lemma, "быть") ~ "VERB",
+    str_detect(lemma, "бы") ~ "PART",
+    TRUE ~ upos)) %>% 
+  count(upos) -> counted_upos
+counted_upos %>% 
+  arrange(n) %>% 
+  ggplot(aes(fct_reorder(upos, n), n)) +
+  geom_col() +
+  labs(x = "", y = "", title = "Красавице, которая нюхала табак: части речи")
+```
